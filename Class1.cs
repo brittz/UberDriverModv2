@@ -60,24 +60,14 @@ namespace Uber_Driver_Re_Written
 
             if (RideTimer.stealRide == true)
             {
-                try
-                {
-                    Game.Player.Character.CurrentVehicle.Speed = 0f;
-                    Game.Player.Character.CurrentVehicle.IsEngineRunning = false;
-                } catch { }
+                vehicleStopAndTurnEngineOff();
 
-                if(CreateMenu.debugItem.Checked)
+                if (CreateMenu.debugItem.Checked)
                 {
                     GTA.UI.Screen.ShowHelpText("stealride");
                 }
 
                 UberMission.ShootAtPlayer();
-
-                Wait(5000);
-
-                Game.Player.Character.Health = 0;
-
-                Wait(6000);
 
                 UberMission.RideComplete();
 
@@ -86,11 +76,7 @@ namespace Uber_Driver_Re_Written
 
             if (UberMission.ActiveRide == true && UberMission.rideScenario == "Robbery" && UberMission.robberyScenarioEntered == true)
             {
-                try
-                {   
-                    Game.Player.Character.CurrentVehicle.Speed = 0f;
-                    Game.Player.Character.CurrentVehicle.IsEngineRunning = false;
-                } catch { }
+                vehicleStopAndTurnEngineOff();
             }
 
             //Update Pool
@@ -155,7 +141,7 @@ namespace Uber_Driver_Re_Written
             //If player is not in vehicle, wait
             if (!Game.Player.Character.IsInVehicle() && UberMission.ActiveRide == true) return;
 
-            if (UberMission.ActiveRide == true && UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle) == true && UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle))
+            if (UberMission.ActiveRide == true && (UberMission.Passenger != null && UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle)) == true && UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle))
             {
                 //Once passenger has entered, set drop off, delete their blip
                 try
@@ -172,10 +158,10 @@ namespace Uber_Driver_Re_Written
             } else
             {
                 //Once player is near ped, wait until ped is in vehicle
-                if (UberMission.isInVehicle == true && UberMission.ActiveRide == true && UberMission.passengerCheck == true && !UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle))
+                if (UberMission.isInVehicle == true && UberMission.ActiveRide == true && UberMission.PedCheck() == true && !UberMission.Passenger.IsInVehicle(player.Character.CurrentVehicle))
                 {
 
-                    if (player.Character.CurrentVehicle.Position.DistanceTo(UberMission.Passenger.Position) <= 6.5f)
+                    if (player.Character.CurrentVehicle.Position.DistanceTo(UberMission.Passenger.Position) <= 8.5f)
                     {
                         //Give player notice
                         GTA.UI.Screen.ShowSubtitle("Wait for the ~b~passenger.", int.MaxValue);
@@ -183,8 +169,7 @@ namespace Uber_Driver_Re_Written
                         //Make passenger enter vehicle
                         UberMission.PedEnterVehicle();
 
-                        //Keep player engine off
-                        player.Character.CurrentVehicle.IsEngineRunning = false;
+                        vehicleTurnEngineOff();
                     }
 
                 }
@@ -199,7 +184,7 @@ namespace Uber_Driver_Re_Written
                 }
             }
 
-            if(RideTimer.notificationShown == false && RideTimer.rideOffered == true)
+            if(RideTimer.notificationShown == false && RideTimer.readyToReceiveOffer == true)
             {
                 UberMission.CreateOffer();
                 RideTimer.notificationShown = true;
@@ -219,7 +204,7 @@ namespace Uber_Driver_Re_Written
                 CreateDeveloperMenu.devMenu.Visible = !CreateDeveloperMenu.devMenu.Visible; 
             }
 
-            if (e.KeyCode == config.GetValue("Settings", "AcceptKey", Keys.E) && RideTimer.rideOffered == true)
+            if (e.KeyCode == config.GetValue("Settings", "AcceptKey", Keys.E) && RideTimer.readyToReceiveOffer == true)
             {
                 //Show message
                 if(UberMission.rideScenario == "Celebrity")
@@ -234,16 +219,16 @@ namespace Uber_Driver_Re_Written
 
                 RideTimer.rideWaitTimer.Enabled = false;
                 RideTimer.rideWaitTimer.Stop();
-                RideTimer.rideOffered = false;
+                RideTimer.readyToReceiveOffer = false;
                 UberMission.JobCheck();
                 return;
             }
 
-            if (e.KeyCode == config.GetValue("Settings", "DeclineKey", Keys.T) && RideTimer.rideOffered == true)
-            {                
-                RideTimer.rideOffered = false;
+            if (e.KeyCode == config.GetValue("Settings", "DeclineKey", Keys.T) && RideTimer.readyToReceiveOffer == true)
+            {               
                 RideTimer.rideWaitTimer.Enabled = false;
                 RideTimer.rideWaitTimer.Stop();
+                RideTimer.readyToReceiveOffer = false;
                 RideTimer.StartTimer();
 
                 for (int i = 0; i < 100; i++)
@@ -269,11 +254,56 @@ namespace Uber_Driver_Re_Written
             }
         }
 
-        private void SetDefaultFunctions()
+        private static void SetDefaultFunctions()
         {
             if(CreateMenu.acceptingRidesItem.Checked == true)
             {
                 RideTimer.StartTimer();
+            }
+        }
+
+        private static void vehicleStopAndTurnEngineOff()
+        {
+            try
+            {
+                if (config.GetValue("Settings", "BoardingEngineOff", true))
+                {
+                    vehicleCompletelyStop();
+                    vehicleTurnEngineOff();
+                }
+            }
+            catch {
+                GenericMethods.ErrorMessage("Error trying to stop and shutdown the vehicle engine.");
+            }
+        }
+
+        private static void vehicleCompletelyStop()
+        {
+            try
+            {
+                if (config.GetValue("Settings", "BoardingEngineOff", true))
+                {
+                    Game.Player.Character.CurrentVehicle.Speed = 0f;
+                }
+            }
+            catch
+            {
+                GenericMethods.ErrorMessage("Error trying to stop the vehicle.");
+            }
+        }
+
+        private static void vehicleTurnEngineOff()
+        {
+            try
+            {
+                if (config.GetValue("Settings", "BoardingEngineOff", true))
+                {
+                    Game.Player.Character.CurrentVehicle.IsEngineRunning = false;
+                }
+            }
+            catch
+            {
+                GenericMethods.ErrorMessage("Error trying to shutdown the vehicle engine.");
             }
         }
     }
