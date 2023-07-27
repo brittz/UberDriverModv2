@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>C:\Program Files %28x86%29\Steam\steamapps\common\Grand Theft Auto V\scripts\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -33,10 +33,10 @@
   <ItemGroup>
     <Reference Include="LemonUI.SHVDN3, Version=1.9.3.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V\scripts\LemonUI.SHVDN3.dll</HintPath>
+      <HintPath>thirds\LemonUI\SHVDN3\LemonUI.SHVDN3.dll</HintPath>
     </Reference>
     <Reference Include="ScriptHookVDotNet3">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V\ScriptHookVDotNet3.dll</HintPath>
+      <HintPath>thirds\ScriptHookV\ScriptHookVDotNet3.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -57,10 +57,12 @@
     <Compile Include="CreateMenu.cs" />
     <Compile Include="GenericMethods.cs" />
     <Compile Include="LevelManager.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RandomLists.cs" />
     <Compile Include="RideTimer.cs" />
     <Compile Include="UberMission.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
