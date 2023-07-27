@@ -54,23 +54,29 @@ namespace Uber_Driver_Re_Written
 
         public static void Rewards()
         {
-            int Level = config.GetValue("Stats", "Level", 1);
-            if (Level == 2)
-            {
+            int Level = GetPlayerLevel();
 
+            switch (Level)
+            {
+                case 2:
+                    RewardMessage("Uber CONFORT unlocked. You can now take UberX and CONFORT rides as well.");
+                    break;
+                case 3:
+                    RewardMessage("Uber BLACK unlocked. You can now take UberX, CONFORT and BLACK rides.");
+                    break;
+                case 4:
+                    RewardMessage("High clientele rides now unlocked.");
+                    Screen.ShowHelpText("You have unlocked high clientele rides. These will be chosen at random when accepting rides.", 10000, true);
+                    break;
+                default:
+                    break;
             }
 
-            if(Level == 3)
-            {
+        }
 
-            }
-
-            if(Level == 4)
-            {
-                //High cliente rides
-                RewardMessage("High clientele rides now unlocked.");
-                Screen.ShowHelpText("You have unlocked high clientele rides. These will be chosen at random when accepting rides.", 10000, true);
-            }
+        public static int GetPlayerLevel()
+        {
+            return config.GetValue("Stats", "Level", 1);
         }
 
         public static void RewardMessage(string content)

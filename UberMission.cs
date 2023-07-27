@@ -29,11 +29,14 @@ namespace Uber_Driver_Re_Written
         //Strings
         public static string rideScenario;
 
+        // Ride Type
+        public static string rideType;
+
         //Ped variable
         public static Ped Passenger;
 
         //Player variable
-        private static Player player;
+        public static Player player;
 
         //Blip variables
         public static Blip passengerBlip;
@@ -46,7 +49,6 @@ namespace Uber_Driver_Re_Written
         //Vehicle check variables
         public static bool isInVehicle;
         public static bool isSeatFree;
-        public static bool passengerCheck;
 
         //Passenger values
         public static bool enteringVehicle = false;
@@ -80,6 +82,11 @@ namespace Uber_Driver_Re_Written
         //Job check, if player is in vehicle, seat free, not dead, etc
         public static void JobCheck()
         {
+            if (player != null)
+            {
+                player = Game.Player;
+            }
+
             //Check if there is an active ride
             if (ActiveRide == true) { GenericMethods.ErrorMessage("You already have an active ride."); return; } else { GenericMethods.VehicleCheck(player); }
 
@@ -90,43 +97,62 @@ namespace Uber_Driver_Re_Written
 
         public static void CreateJob()
         {
-            if (ActiveRide == true) return;
+
+            // if a ride job already exists, prevents to create a new one
+            if (ActiveRide) return;
 
             ActiveRide = true;
-
+            
             player = Game.Player;
 
-            //Position variable, get next position on sidewalk
+            //get next position on sidewalk
             Vector3 sideWalkCoords = World.GetNextPositionOnSidewalk(World.GetNextPositionOnStreet(player.Character.Position.Around(165f)));
+
+            if (rideScenario == null)
+            {
+                SetRideScenario();
+            }
 
             //Create ped, set properties:
 
             //Creating passenger at the sidewalk coords
-            if (rideScenario == "Celebrity")
+            switch (rideScenario)
             {
-                Passenger = World.CreatePed(RandomLists.CelebrityModel, sideWalkCoords);
-            } 
+                case "Celebrity":
+                    Passenger = World.CreatePed(RandomLists.CelebrityModel, sideWalkCoords);
+                    break;
 
-            if(rideScenario == "Normal")
-            {
-                Passenger = World.CreateRandomPed(sideWalkCoords);
+                case "Normal":
+                case "Drunk":
+                case "Robbery":
+                    Passenger = World.CreateRandomPed(sideWalkCoords);
+
+                    if (rideScenario == "Drunk")
+                    {
+                        Function.Call(Hash.REQUEST_ANIM_SET, "MOVE_M@DRUNK@VERYDRUNK");
+                        while (!Function.Call<bool>(Hash.HAS_ANIM_SET_LOADED, "MOVE_M@DRUNK@VERYDRUNK"))
+                            Script.Wait(100);
+
+                        Function.Call(Hash.SET_PED_MOVEMENT_CLIPSET, Passenger, "MOVE_M@DRUNK@VERYDRUNK", 1.0f);
+                    }
+                    else if (rideScenario == "Robbery")
+                    {
+                        Passenger.Weapons.Give(WeaponHash.Pistol, 999, true, true);
+                    }
+
+                    break;
+
+                default:
+                    GenericMethods.ErrorMessage("The rideScenario object is not instantiated!");
+                    RideComplete();
+                    return;
             }
-            
-            if(rideScenario == "Drunk")
-            {
-                Passenger = World.CreateRandomPed(sideWalkCoords);
-                Function.Call(Hash.REQUEST_ANIM_SET, "MOVE_M@DRUNK@VERYDRUNK");
-                while (!Function.Call<bool>(Hash.HAS_ANIM_SET_LOADED, "MOVE_M@DRUNK@VERYDRUNK"))
-                    Script.Wait(100);
 
-                Function.Call(Hash.SET_PED_MOVEMENT_CLIPSET, Passenger, "MOVE_M@DRUNK@VERYDRUNK", 1.0f);
-            }
-
-            if(rideScenario == "Robbery")                                                                                   
+            if (Passenger == null)
             {
-                Passenger = World.CreateRandomPed(sideWalkCoords);
-                Passenger.Weapons.Give(WeaponHash.Pistol, 999, true, true);
-                
+                GenericMethods.ErrorMessage("The Passenger object is not instantiated!");
+                RideComplete();
+                return;
             }
 
             //Disable fleeing, disable combat
@@ -150,8 +176,12 @@ namespace Uber_Driver_Re_Written
             //Set subtitle
             if(rideScenario == "Celebrity")
             {
-                GTA.UI.Screen.ShowSubtitle("Drive to ~b~" + RandomLists.CelebrityName, int.MaxValue);
-            } else { GTA.UI.Screen.ShowSubtitle("Drive to the ~b~passenger.", int.MaxValue); }
+                GTA.UI.Screen.ShowSubtitle("Drive to ~b~" + RandomLists.CelebrityName, 10);
+            } 
+            else 
+            {
+                GTA.UI.Screen.ShowSubtitle("Drive to the ~b~passenger.", 10);
+            }
 
             //Start job functions
             JobFunctions();
@@ -162,7 +192,7 @@ namespace Uber_Driver_Re_Written
             //Check if ped is still valid
             PedCheck();
             
-            if(passengerCheck == true)
+            if(PedCheck() == true)
             {
                 player = Game.Player;                
 
@@ -187,11 +217,11 @@ namespace Uber_Driver_Re_Written
             ActiveRide = false;
             isInVehicle = false;
             isSeatFree = false;
-            passengerCheck = false;
             enteringVehicle = false;
             inVehicle = false;
             setDestination = false;
             RideTimer.stealRide = false;
+            rideScenario = null;
 
             //Check if timer should be enabled again
             if (CreateMenu.acceptingRidesItem.Checked)
@@ -214,17 +244,6 @@ namespace Uber_Driver_Re_Written
 
             //Stop player animation
             Game.Player.Character.Task.ClearAnimation("anim@mp_player_intincarsurrenderlow@ds@", "idle_a");
-
-            try
-            {
-                //Fix engine in case
-                Game.Player.Character.CurrentVehicle.EngineHealth = 1250;
-            } catch {
-                //Not in vehicle
-            }
-
-            //Unlock doors
-            Function.Call(Hash.SET_VEHICLE_DOORS_LOCKED, Game.Player.Character.CurrentVehicle, 1);
 
             //Set variable
             robberyScenarioEntered = false;
@@ -251,10 +270,11 @@ namespace Uber_Driver_Re_Written
             {
                 //Delete blip
                 try { destinationBlip.Delete(); } catch { }
-
-                //Turn off and stop vehicle
-                player.Character.CurrentVehicle.Speed = 0;
-                player.Character.CurrentVehicle.IsEngineRunning = false;
+                
+                if (config.GetValue("Settings", "BoardingEngineOff", true))
+                {
+                    Game.Player.Character.CurrentVehicle.IsEngineRunning = false;
+                }
 
                 //Setting passenger tasks
                 Passenger.Task.LeaveVehicle();
@@ -289,36 +309,36 @@ namespace Uber_Driver_Re_Written
             {              
                 rating = rnd.Next(3, 6);         
 
-                payout = rnd.Next(30, 50);                
+                //payout = rnd.Next(30, 50);                
 
-                tip = rnd.Next(50, 70);                
+                //tip = rnd.Next(50, 70);                
             }
 
             if(damage <= 989)
             {
                 rating = rnd.Next(2, 6);
 
-                payout = rnd.Next(20, 40);
+                //payout = rnd.Next(20, 40);
 
-                tip = rnd.Next(40, 60);
+                //tip = rnd.Next(40, 60);
             }
 
             if(damage <= 900)
             {
                 rating = rnd.Next(2, 6);
 
-                payout = rnd.Next(25, 42);
+                //payout = rnd.Next(25, 42);
 
-                tip = rnd.Next(25, 45);
+                //tip = rnd.Next(25, 45);
             }
 
             if (damage <= 800)
             {
                 rating = rnd.Next(2, 4);
 
-                payout = rnd.Next(20, 35);
+                //payout = rnd.Next(20, 35);
 
-                tip = rnd.Next(10, 34);
+                //tip = rnd.Next(10, 34);
             }
 
             int modifiedPayout;
@@ -359,6 +379,7 @@ namespace Uber_Driver_Re_Written
                 payout = payout + modifiedPayout;
             }
 
+            payout = GetTotalPayout();
             totalPayout = payout + tip;
 
             player.Money += totalPayout;
@@ -397,7 +418,7 @@ namespace Uber_Driver_Re_Written
 
             if(rideScenario == "Normal" || rideScenario == "Drunk")
             {
-                GenericMethods.VehicleCheck(Game.Player);
+                //GenericMethods.VehicleCheck(Game.Player);
 
                 if (inVehicle == false && enteringVehicle == false)
                 {
@@ -468,9 +489,7 @@ namespace Uber_Driver_Re_Written
             destinationBlip.Name = AvailableDropoffs.DropName;
             destinationBlip.Color = BlipColor.Yellow;
             destinationBlip.ShowRoute = true;
-
             GTA.UI.Screen.ShowSubtitle("Drive the ~b~passenger ~w~to ~y~" + AvailableDropoffs.DropName + ".", int.MaxValue);
-
             JobStopwatch();
 
             setDestination = true;
@@ -484,12 +503,14 @@ namespace Uber_Driver_Re_Written
         }
         
         //Ensure passenger is still valid
-        public static void PedCheck()
+        public static bool PedCheck()
         {
-            if(Passenger.Exists() && Passenger.IsAlive)
+            if (Passenger.Exists() && Passenger.IsAlive)
             {
-                passengerCheck = true;
-            } else { passengerCheck = false; }
+                return true;
+            } 
+            
+            return false;
         }
 
         //Setup elapsed time for job
@@ -528,10 +549,11 @@ namespace Uber_Driver_Re_Written
             {
                 music.Load();
                 music.Play();
-            } else { music.Stop(); }
-
-            //Create random method
-            Random random = new Random();
+            } 
+            else 
+            {
+                music.Stop();
+            }
 
             //Get random names
             RideTimer.GetName();            
@@ -539,34 +561,166 @@ namespace Uber_Driver_Re_Written
             string acceptKey = config.GetValue("Settings", "AcceptKey", Keys.E).ToString();
             string declineKey = config.GetValue("Settings", "DeclineKey", Keys.T).ToString();
 
-            int estimatedPayout = random.Next(150, 240);
+            SetRideScenario();
+            setRideType();
 
-            //Get ride scenario
-            GetRideScenario();
+            float estimatedPayout = GetEstimatedPayout();
 
             //Generate ride offer message
-            if (rideScenario == "Celebrity")
-            {               
-                Notification.Show(NotificationIcon.LsTouristBoard, "Celebrity Ride Offer", RandomLists.CelebrityName, "~g~Estimated payout: $" + estimatedPayout + "~n~~w~Press ~g~" + acceptKey + "~w~ to accept or ~r~" + declineKey + "~w~ to decline.");
-            } else
-            { Notification.Show(NotificationIcon.SocialClub, "Ride Offer", RideTimer.firstName + " " + RideTimer.lastName, "~g~Estimated payout: $" + estimatedPayout + "~n~~w~Press ~g~" + acceptKey + "~w~ to accept or ~r~" + declineKey + "~w~ to decline."); }     
-            
-            if(rideScenario == "Drunk")
-            {
+            NotificationIcon icon;
+            string sender;
+            string subject;
+            string message;
 
+            switch (rideScenario)
+            {
+                case "Celebrity":
+                    icon = NotificationIcon.LsTouristBoard;
+                    sender = rideType+" Ride Offer";
+                    subject = RandomLists.CelebrityName;
+                    message = "~g~Estimated payout: " + estimatedPayout.ToString("0.00");
+                    message += "~n~~w~Press ~g~" + acceptKey + "~w~ to accept or ~r~" + declineKey + "~w~ to decline.";
+                    break;
+                default:
+                    icon = NotificationIcon.SocialClub;
+                    sender = rideType + " Ride Offer";
+                    subject = RideTimer.firstName + " " + RideTimer.lastName;
+                    message = "~g~Estimated payout: $" + estimatedPayout.ToString("0.00");
+                    message += "~n~~w~Press ~g~" + acceptKey + "~w~ to accept or ~r~" + declineKey + "~w~ to decline.";
+                    break;
             }
 
-            if(rideScenario == "Robbery")
-            {
-
-            }
-            
+            Notification.Show(icon, sender, subject, message);
+        
             //Set shown to true
             RideTimer.notificationShown = true;
-
             RideTimer.OfferTimerTimeOut();
+        }
 
-            return;
+        public static int GetTotalPayout()
+        {
+            // Given values
+            float rideDuration = jobTimer.ElapsedMilliseconds; // 6 minutes = 6 * 60 seconds * 1000 milliseconds
+
+            // Calculation of the ride fare
+            float baseFare = 10f; // Base fare of the ride
+            float distanceWeight = GetEstimatedPayout(); // Weighting factor for distance (e.g., 1 meter = $0.01)
+            float durationWeight = rideDuration * 0.000075f; // Weighting factor for duration (e.g., 1 second = $0.001)
+            float rideFare = baseFare + distanceWeight + durationWeight;
+
+            return (int)rideFare;
+        }
+
+        public static float GetEstimatedPayout()
+        {    
+            float estimatedPayoutKilometer = CalculateEstimatedPayout();
+            return estimatedPayoutKilometer;
+        }
+
+        public static void setRideType()
+        {
+            Random random = new Random();
+
+            string[] rideTypes = { "UberX", "Uber SELECT", "Uber BLACK", "Uber Celebrity" };
+
+            int playerLevel = LevelManager.GetPlayerLevel();
+
+            switch (playerLevel)
+            {
+                case 2:
+                    // UberX and SELECT
+                    if (random.Next(0, 2) == 0)
+                    {
+                        rideType = rideTypes[0];
+                    }
+                    else
+                    {
+                        rideType = rideTypes[1];
+                    }
+                    break;
+
+                case 3:
+                    // UberX, SELECT, and BLACK
+                    switch (random.Next(0, 3))
+                    {
+                        case 0:
+                            rideType = rideTypes[0];
+                            break;
+                        case 1:
+                            rideType = rideTypes[1];
+                            break;
+                        case 2:
+                            rideType = rideTypes[2];
+                            break;
+                        default:
+                            rideType = rideTypes[0];
+                            break;
+                    }
+                    break;
+
+                case 4:
+                    // All types of rides and celebrity
+                    switch (random.Next(0, 4))
+                    {
+                        case 0:
+                            rideType = rideTypes[0];
+                            break;
+                        case 1:
+                            rideType = rideTypes[1];
+                            break;
+                        case 2:
+                            rideType = rideTypes[2];
+                            break;
+                        case 3:
+                            rideType = rideTypes[3];
+                            break;
+                        default:
+                            rideType = rideTypes[0];
+                            break;
+                    }
+                    break;
+
+                default:
+                    rideType = rideTypes[0];
+                    break;
+            }
+        }
+
+        public static float CalculateEstimatedPayout()
+        {
+            // calculating estimated distance and payout
+            Vector3 playerPos = Game.Player.Character.Position;
+            float estimatedDistance = Vector3.Distance(playerPos, AvailableDropoffs.DropPos);
+
+            // this is hard mode, in easy mode should multiply the total value by 15 at least
+            return GetRideFare() * estimatedDistance + GetInicialTax() * 15;
+        }
+
+        public static float GetInicialTax()
+        {
+            return 7.6f;
+        }
+
+        public static float GetRideFare()
+        {
+            float farePerMeterUberX = 1.6f / 1000;
+            float farePerMeterCONFORT = 1.95f / 1000;
+            float farePerMeterBLACK = 2.30f / 1000;
+            float farePerMeterCelebrity = 4.6f / 1000;
+
+            switch (rideType)
+            {
+                case "UberX":
+                    return 1;
+                case "Uber SELECT":
+                    return farePerMeterCONFORT;
+                case "Uber BLACK":
+                    return farePerMeterBLACK;
+                case "Uber Celebrity":
+                    return farePerMeterCelebrity;
+                default:
+                    return farePerMeterUberX;
+            }
         }
 
         public static void CreateRobberyProgressBar()
@@ -580,7 +734,7 @@ namespace Uber_Driver_Re_Written
             robberyProgressBar.Centered = false;
         }
 
-        public static void GetRideScenario()
+        public static void SetRideScenario()
         {
             Random random = new Random();
 
@@ -588,7 +742,7 @@ namespace Uber_Driver_Re_Written
             int percentage = random.Next(0, 100);
 
             //If percentage is 75
-            if (percentage < 75)
+            if (percentage >= 35)
             {
                 rideScenario = "Normal";
             }
@@ -600,18 +754,18 @@ namespace Uber_Driver_Re_Written
             }
 
             //If percentage is 12
-            //if (percentage < 27)
-            //{
-            //    rideScenario = "Celebrity";
-            //    //Get celebrity names
-            //    RandomLists.GetName();
-            //}
+            if (percentage < 27)
+            {
+                rideScenario = "Celebrity";
+                //Get celebrity names
+                RandomLists.GetName();
+            }
 
-            ////If percentage is 5
-            //if (percentage < 5)
-            //{
-            //    rideScenario = "Robbery";
-            //}
+            //If percentage is 5
+            if (percentage < 5)
+            {
+                rideScenario = "Robbery";
+            }
 
             //Debug features
             if(CreateMenu.debugItem.Checked)

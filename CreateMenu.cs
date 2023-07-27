@@ -24,7 +24,7 @@ namespace Uber_Driver_Re_Written
     {
         //Version variables
         public static string versionString;
-        public static string currentVersion = "0.4a";
+        public static string currentVersion = "0.0.1beta";
         public static int version;
 
         //Make pool accessible by all classes
@@ -49,6 +49,8 @@ namespace Uber_Driver_Re_Written
 
         //Create list of possible drop-offs (city, country)
         public static NativeListItem<string> dropOffList = new NativeListItem<string>("Drop-off Location", "Where you want drop-off locations to be.", "City", "Country");
+
+        public static NativeListItem<string> fareItem = new NativeListItem<string>("Base Fare", "0.00", GetFareValues().ToArray());
 
         //Notif sound checkbox
         public static NativeCheckboxItem notifSoundItem = new NativeCheckboxItem("Notification Sound", "Whether or not you want the ride notification to play.", true);
@@ -88,13 +90,14 @@ namespace Uber_Driver_Re_Written
             //Add items to uberMenu
             uberMenu.Add(acceptingRidesItem);
             uberMenu.Add(instantRidesItem);
+            uberMenu.Add(startRideItem);
             uberMenu.Add(cancelRideItem);
             uberMenu.AddSubMenu(settingsMenu);
 
             //Add items to settingsMenu
             settingsMenu.Add(dropOffList);
+            settingsMenu.Add(fareItem);
             settingsMenu.Add(notifSoundItem);
-            settingsMenu.Add(startRideItem);
             settingsMenu.Add(debugItem);
 
             //Add items to devMenu
@@ -103,7 +106,7 @@ namespace Uber_Driver_Re_Written
             devMenu.Add(forceScenarioList);
 
             //Check version also sets settings subtitle
-            VersionCheck();
+            //VersionCheck();
 
             //Set item methods
             acceptingRidesItem.CheckboxChanged += acceptingRidesCheckboxChanged;
@@ -114,6 +117,18 @@ namespace Uber_Driver_Re_Written
             notifSoundItem.Activated += notifSoundItemActivated;
             startRideItem.Activated += startRideItemActivated;
 
+        }
+
+        public static List<string> GetFareValues()
+        {
+            List<string> fareValues = new List<string>();
+            for (int i = 0; i <= 100; i++)
+            {
+                float fare = i / 100f;
+                fareValues.Add(fare.ToString("0.00"));
+            }
+
+            return fareValues;
         }
 
         public static void acceptingRidesCheckboxChanged(object sender, EventArgs e)
@@ -181,12 +196,12 @@ namespace Uber_Driver_Re_Written
         {
             if(currentVersion != versionString.Trim()) {
                 //Mod is up to outdated, make version text red
-                settingsMenu.Subtitle = "~r~OUTDATED " + currentVersion.ToLower();
+                settingsMenu.Name = "~r~OUTDATED " + currentVersion.ToLower();
                 GTA.UI.Notification.Show("Your Uber Driver build is outdated. Please update." + "~n~Current version: ~r~" + currentVersion + "~n~~w~Newest version: ~g~" + versionString);
             } else
             {
                 //Mod is up to date, make version text green
-                settingsMenu.Subtitle = "~g~" + currentVersion.ToLower();
+                settingsMenu.Name = "~g~" + currentVersion.ToLower();
             }
 
         }

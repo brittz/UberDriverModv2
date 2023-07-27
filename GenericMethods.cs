@@ -45,7 +45,7 @@ namespace Uber_Driver_Re_Written
 
         //Check if player is in vehicle with at least 2 seats
         public static void VehicleCheck(Player player)
-        {           
+        {
             Vehicle playerVehicle;
 
             player = Game.Player;
